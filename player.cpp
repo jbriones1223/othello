@@ -1,6 +1,7 @@
 /**
  * @file player.cpp
  * @author Jack Briones <<jbriones@caltech.edu>>
+ * @author Michelle Fan <<mfan@caltech.edu>>
  * @version 1.0
  * @date 2017
  * 
