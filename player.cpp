@@ -66,7 +66,7 @@ Player::~Player() {
 Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     board->doMove(opponentsMove, oppSide);
-    vector<Move *> moves;
+    vector<Move *> moves; // a vector of all possible moves
 
     if(!board->hasMoves(side)){ 
         return nullptr;
@@ -75,8 +75,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     for(int i = 0; i < 8; i ++) {
         for(int j = 0; j < 8; j++) {
             Move * move = new Move(i, j);
-            if(board->checkMove(move, side)) 
+            if(board->checkMove(move, side)) {
                 moves.push_back(move);
+            } else {
+                delete move;
+            }
         }
     }
 
@@ -98,8 +101,16 @@ Move* Player::getBestMove(vector<Move*> moves) {
 
     Move* best = moves[0];
 
-    for (vector< Move* >::iterator i = moves.begin() + 1; i != moves.end(); ++i)
-        best = (Player::gradeMove(*i) > Player::gradeMove(best)) ? *i : best;
+    if (testingMinimax) {
+        int best_heur = Player::worstResult(best);
+        for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); ++i) {
+           int heur = Player::worstResult(*i);
+           if (heur > best_heur) best = *i; // we want the highest worst result
+        }
+    } else {
+        for (vector< Move* >::iterator i = moves.begin() + 1; i != moves.end(); ++i)
+            best = (Player::gradeMove(*i) > Player::gradeMove(best)) ? *i : best;
+    }
 
     return best;
 }
@@ -146,6 +157,58 @@ int Player::gradeMove(Move* move){
 
     delete copy;
     return scoreChange;
+}
+
+/*
+ * Given a move, this function examines all possible moves in the next iteration.
+ * Of the moves it considers, it finds a heuristic for each. It then returns the
+ * minimum heuristic value, also known as the worst case. This is for use in the
+ * minimax method of playing the game.
+ */
+int Player::worstResult(Move* move) {
+    Board * copy = board->copy();
+    copy->doMove(move, side);
+
+    if (!copy->hasMoves(oppSide)) {
+        // in this case, just return the heuristic of the first move
+        int grade = copy->count(side) - copy->count(oppSide);
+        return grade;
+    }
+
+    vector<Move*> moves; // vector of all possible resulting moves
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            Move * newMove = new Move(i, j);
+            if (copy->checkMove(newMove, oppSide)) {
+                moves.push_back(newMove);
+            } else {
+                delete newMove;
+            } // for each position, if the move is possible, add it to the vec
+        }
+    }
+
+    Board * second_copy = copy->copy();
+    second_copy->doMove(moves[0], oppSide);
+    int worst = second_copy->count(side) - second_copy->count(oppSide);
+    delete second_copy;
+    delete moves[0];
+
+    for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); i++) {
+        Board * scopy = copy->copy();
+        scopy->doMove(*i, oppSide);
+        int grade = scopy->count(side) - scopy->count(oppSide);
+        if (grade < worst) worst = grade; // this changes worst every time
+            // something smaller is found.
+        delete scopy;
+        delete (*i);
+    }
+
+    moves.clear();
+
+    delete copy;
+
+    return worst;
 }
 
 /*

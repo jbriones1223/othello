@@ -22,6 +22,7 @@ public:
     Move *doMove(Move *opponentsMove, int msLeft);
     Move *getBestMove(vector<Move*> moves);
     int gradeMove(Move* move);
+    int worstResult(Move* move);
     bool isSide(Move* move);
     bool isCorner(Move* move);
 
