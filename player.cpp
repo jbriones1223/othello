@@ -9,6 +9,20 @@
 
 #include "player.hpp"
 
+#define CORNER_BONUS        (3)
+#define SIDE_BONUS          (2)
+#define ONE_AWAY_CORNER     (-3)
+#define ONE_AWAY_SIDE       (-1)
+/*
+ * To determine these constants, several sets of constants were tested over 25
+ * games each against SimlePlayer. The results are as follows:
+ * (CORNER_BONUS, SIDE_BONUS, ONE_AWAY_CORNER, ONE_AWAY_SIDE) --> W/L/T
+ * (3, 2, -2, -1) --> 19/05/01
+ * (3, 2, -3, -2) --> 15/10/00
+ * (3, 2, -3, -1) --> 24/01/00
+ */
+
+
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
@@ -90,19 +104,48 @@ Move* Player::getBestMove(vector<Move*> moves) {
     return best;
 }
 /*
- * Gives a move a score based on number of pieces each side after simulating the move.
- * x2 if the move is on a side; x3 if the move is on a corner
+ * Gives a move a score based on the change in the difference between numbers of
+ * pieces. It multiplies the score by an integer based on its position; moves
+ * on corners and sides have a bonus, but moves that are one away from a corner
+ * or side are punished. At most one multiplier will be used, and this function
+ * prioritizes negative multipliers (i.e., a move to (1,0) will have a negative
+ * multiplier because it is adjacent to (0,0)).
  */
 int Player::gradeMove(Move* move){
-
+    // we want the change in score
+    int startScore = board->count(side) - board->count(oppSide);
     Board* copy = board->copy();
     copy->doMove(move, side);
-    int toReturn = copy->count(side) - copy->count(oppSide);
+    int endScore = copy->count(side) - copy->count(oppSide);
+    int scoreChange = endScore - startScore;
+    int x = move->getX();
+    int y = move->getY();
 
-    toReturn = (Player::isCorner(move)) ? toReturn * 3 : (Player::isSide(move)) ? toReturn * 2 : toReturn;
+    if (Player::isCorner(move)) {
+        scoreChange *= CORNER_BONUS;
+    } else if (Player::isSide(move)) {
+        if (x == 1 || x == 6 || y == 1 || y == 6) {
+            // we are one off from a corner
+            scoreChange *= ONE_AWAY_CORNER;
+        } else {
+            // a normal side position
+            scoreChange *= SIDE_BONUS;
+        }
+    } else {
+        // not on a side
+        if (x == 1 || x == 6 || y == 1 || y == 6) {
+            // one away from a side
+            if ((x == 1 || x == 6) && (y == 1 || y == 6)) {
+                // one away from a corner
+                scoreChange *= ONE_AWAY_CORNER;
+            } else {
+                scoreChange *= ONE_AWAY_SIDE;
+            }
+        } // if it's not in the outer two rows, nothing special
+    }
 
     delete copy;
-    return toReturn;
+    return scoreChange;
 }
 
 /*
