@@ -8,6 +8,11 @@
 Player::Player(Side side) {
     // Will be set to true in test_minimax.cpp.
     testingMinimax = false;
+    this->side = side;
+    board = new Board();
+    oppSide = (side == BLACK) ? WHITE : BLACK;
+    srand(time(NULL));
+
 
     /*
      * TODO: Do any initialization you need to do here (setting up the board,
@@ -20,7 +25,7 @@ Player::Player(Side side) {
  * Destructor for the player.
  */
 Player::~Player() {
-    
+    delete board;
 }
 
 /*
@@ -37,9 +42,30 @@ Player::~Player() {
  * return nullptr.
  */
 Move *Player::doMove(Move *opponentsMove, int msLeft) {
-    /*
-     * TODO: Implement how moves your AI should play here. You should first
-     * process the opponent's opponents move before calculating your own move
-     */
-    return nullptr;
+    
+    board->doMove(opponentsMove, oppSide);
+    vector<Move *> moves;
+
+    if(!board->hasMoves(side)){ 
+        return nullptr;
+    }
+
+    for(int i = 0; i < 8; i ++) {
+        for(int j = 0; j < 8; j++) {
+            Move * move = new Move(i, j);
+            if(board->checkMove(move, side)) 
+                moves.push_back(move);
+        }
+    }
+
+    Move * m =  moves[rand() % moves.size()];
+    m = new Move(m->getX(), m->getY());
+    board->doMove(m, side);
+
+    for (std::vector< Move* >::iterator i = moves.begin() ; i != moves.end(); ++i)
+        delete (*i);
+    moves.clear();
+
+
+    return m;
 }
