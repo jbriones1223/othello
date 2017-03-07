@@ -20,7 +20,6 @@ Player::Player(Side side) {
     this->side = side;
     board = new Board();
     oppSide = (side == BLACK) ? WHITE : BLACK;
-    srand(time(NULL));
 
 
     /*
@@ -67,14 +66,57 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         }
     }
 
-    Move * m =  moves[rand() % moves.size()];
+    Move * m =  Player::getBestMove(moves);
     m = new Move(m->getX(), m->getY());
     board->doMove(m, side);
 
-    for (std::vector< Move* >::iterator i = moves.begin() ; i != moves.end(); ++i)
+    for (vector< Move* >::iterator i = moves.begin(); i != moves.end(); ++i)
         delete (*i);
     moves.clear();
 
 
     return m;
 }
+/*
+ * Returns the move with the highest heuristic score
+ */
+Move* Player::getBestMove(vector<Move*> moves) {
+
+    Move* best = moves[0];
+
+    for (vector< Move* >::iterator i = moves.begin() + 1; i != moves.end(); ++i)
+        best = (Player::gradeMove(*i) > Player::gradeMove(best)) ? *i : best;
+
+    return best;
+}
+/*
+ * Gives a move a score based on number of pieces each side after simulating the move.
+ * x2 if the move is on a side; x3 if the move is on a corner
+ */
+int Player::gradeMove(Move* move){
+
+    Board* copy = board->copy();
+    copy->doMove(move, side);
+    int toReturn = copy->count(side) - copy->count(oppSide);
+
+    toReturn = (Player::isCorner(move)) ? toReturn * 3 : (Player::isSide(move)) ? toReturn * 2 : toReturn;
+
+    delete copy;
+    return toReturn;
+}
+
+/*
+ * Returns true if the move is on a board edge
+ */
+bool Player::isSide(Move* move){
+    return move->getX() == 0 || move->getX() == 7 || move->getY() == 0 || move->getY() == 7;
+}
+
+/*
+ * Returns true if the move is on a board corner
+ */
+bool Player::isCorner(Move* move){
+    return (move->getX() == 0 && move->getY() == 0) || (move->getX() == 0 && move->getY() == 7) 
+    || (move->getX() == 7 && move->getY() == 0) || (move->getX() == 7 && move->getY() == 7); 
+}
+
