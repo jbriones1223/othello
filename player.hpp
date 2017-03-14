@@ -22,9 +22,11 @@ public:
     Move *doMove(Move *opponentsMove, int msLeft);
     Move *getBestMove(vector<Move*> moves);
     int gradeMove(Move* move);
-    int worstResult(Move* move);
+    int worstResult(Side theSide, int depth, Board* brd);
     bool isSide(Move* move);
     bool isCorner(Move* move);
+    Side nextSide (Side side);
+    int grade(Board* b);
 
     // Flag to tell if the player is running within the test_minimax context
     bool testingMinimax;
