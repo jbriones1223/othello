@@ -20,8 +20,9 @@ public:
     Side oppSide;
 
     Move *doMove(Move *opponentsMove, int msLeft);
-    Move *getBestMove(vector<Move*> moves);
+    Move *getBestMove(vector<Move*> moves, int depth = 1);
     int gradeMove(Move* move);
+    int grade(Move* move, int depth, Board* b);
     int worstResult(Move* move);
     bool isSide(Move* move);
     bool isCorner(Move* move);

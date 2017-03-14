@@ -30,7 +30,7 @@
  */
 Player::Player(Side side) {
     // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;
+    testingMinimax = true;
     this->side = side;
     board = new Board();
     oppSide = (side == BLACK) ? WHITE : BLACK;
@@ -83,7 +83,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         }
     }
 
-    Move * m =  Player::getBestMove(moves);
+    Move * m =  Player::getBestMove(moves, 3); // delegate choosing to this method
     m = new Move(m->getX(), m->getY());
     board->doMove(m, side);
 
@@ -97,15 +97,29 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 /*
  * Returns the move with the highest heuristic score
  */
-Move* Player::getBestMove(vector<Move*> moves) {
+Move* Player::getBestMove(vector<Move*> moves, int depth) {
 
     Move* best = moves[0];
 
     if (testingMinimax) {
-        int best_heur = Player::worstResult(best);
-        for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); ++i) {
-           int heur = Player::worstResult(*i);
-           if (heur > best_heur) best = *i; // we want the highest worst result
+        if (depth <= 1) {
+            int best_heur = Player::worstResult(best);
+            for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); ++i) {
+                int heur = Player::worstResult(*i);
+                if (heur > best_heur) {
+                    best = *i; // we want the highest worst result
+                    best_heur = heur;
+                }
+            }
+        } else {
+            int best_grade = grade(best, depth, board);
+            for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); ++i) {
+                int cur_grade = Player::grade(*i, depth, board);
+                if (cur_grade > best_grade) {
+                    best = *i;
+                    best_grade = cur_grade;
+                }
+            }
         }
     } else {
         for (vector< Move* >::iterator i = moves.begin() + 1; i != moves.end(); ++i)
@@ -114,6 +128,68 @@ Move* Player::getBestMove(vector<Move*> moves) {
 
     return best;
 }
+
+int Player::grade(Move* move, int depth, Board* b) {
+    Board* copy = b->copy();
+    copy->doMove(move, side);
+
+    vector<Move *> moves; // a vector of all possible moves
+
+    for(int i = 0; i < 8; i ++) {
+        for(int j = 0; j < 8; j++) {
+            Move * move = new Move(i, j);
+            if(copy->checkMove(move, side)) {
+                moves.push_back(move);
+            } else {
+                delete move;
+            }
+        }
+    }
+
+    if (depth <= 1) {
+        Board* newCopy = copy->copy();
+        newCopy->doMove(moves[0], oppSide);
+        int bestGrade = newCopy->count(side) - newCopy->count(oppSide);
+        delete newCopy;
+        for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); i++) {
+            Board* newCopy = copy->copy();
+            newCopy->doMove(*i, oppSide);
+            int newGrade = newCopy->count(side) - newCopy->count(oppSide);
+            if (newGrade < bestGrade) {
+                bestGrade = newGrade;
+            }
+            delete newCopy;
+        }
+        return bestGrade;
+    } else {
+        // we have a list of all possible opponent moves
+        // now we go through each of these, and grade all possible moves from us
+        // that result from the opponent moves. return the lowest of these.
+        int best_g = -65; // with our grading scheme, -65 is impossible.
+        for (vector<Move*>::iterator i = moves.begin(); i != moves.end(); i++) {
+            Board* newCopy = copy->copy();
+            copy->doMove(*i, oppSide);
+            for (int x = 0; x < 8; x++) {
+                for (int y = 0; y < 8; y++) {
+                    Move* m = new Move(x, y);
+                    if (newCopy->checkMove(m, side)) {
+                        int g = Player::grade(m, depth - 1, newCopy);
+                        if (best_g == -65) { // initialization condition
+                            best_g = g;
+                        } else if (g < best_g) {
+                            best_g = g;
+                        }
+                    }
+                    delete m;
+                }
+            }
+        }
+        return best_g;
+    }
+
+    return 0;
+}
+
 /*
  * Gives a move a score based on the change in the difference between numbers of
  * pieces. It multiplies the score by an integer based on its position; moves
