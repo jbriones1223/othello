@@ -13,6 +13,7 @@
 #define SIDE_BONUS          (2)
 #define ONE_AWAY_CORNER     (-3)
 #define ONE_AWAY_SIDE       (-1)
+#define MAX_DEPTH           (31)
 /*
  * To determine these constants, several sets of constants were tested over 25
  * games each against SimlePlayer. The results are as follows:
@@ -30,10 +31,10 @@
  */
 Player::Player(Side side) {
     // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;
+    testingMinimax = true;
     this->side = side;
     board = new Board();
-    oppSide = (side == BLACK) ? WHITE : BLACK;
+    oppSide = nextSide(side);
 
 
     /*
@@ -102,11 +103,16 @@ Move* Player::getBestMove(vector<Move*> moves) {
     Move* best = moves[0];
 
     if (testingMinimax) {
-        int best_heur = Player::worstResult(best);
-        for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); ++i) {
-           int heur = Player::worstResult(*i);
-           if (heur > best_heur) best = *i; // we want the highest worst result
+
+        int best_heur = -999999;
+        for (vector<Move*>::iterator i = moves.begin(); i != moves.end(); ++i) {
+            Board* copy = board->copy();
+            copy->doMove(*i, side);
+            int heur = Player::worstResult(oppSide, MAX_DEPTH, copy);
+            if (heur > best_heur) best = *i; 
+            delete copy;
         }
+
     } else {
         for (vector< Move* >::iterator i = moves.begin() + 1; i != moves.end(); ++i)
             best = (Player::gradeMove(*i) > Player::gradeMove(best)) ? *i : best;
@@ -165,22 +171,19 @@ int Player::gradeMove(Move* move){
  * minimum heuristic value, also known as the worst case. This is for use in the
  * minimax method of playing the game.
  */
-int Player::worstResult(Move* move) {
-    Board * copy = board->copy();
-    copy->doMove(move, side);
+int Player::worstResult(Side theSide, int depth, Board* brd) {
 
-    if (!copy->hasMoves(oppSide)) {
-        // in this case, just return the heuristic of the first move
-        int grade = copy->count(side) - copy->count(oppSide);
-        return grade;
+    if (brd->isDone() || depth == MAX_DEPTH) {
+        return grade(brd);
     }
 
     vector<Move*> moves; // vector of all possible resulting moves
+    int score = 0;
 
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             Move * newMove = new Move(i, j);
-            if (copy->checkMove(newMove, oppSide)) {
+            if (brd->checkMove(newMove, theSide)) {
                 moves.push_back(newMove);
             } else {
                 delete newMove;
@@ -188,27 +191,18 @@ int Player::worstResult(Move* move) {
         }
     }
 
-    Board * second_copy = copy->copy();
-    second_copy->doMove(moves[0], oppSide);
-    int worst = second_copy->count(side) - second_copy->count(oppSide);
-    delete second_copy;
-    delete moves[0];
-
-    for (vector<Move*>::iterator i = moves.begin() + 1; i != moves.end(); i++) {
-        Board * scopy = copy->copy();
-        scopy->doMove(*i, oppSide);
-        int grade = scopy->count(side) - scopy->count(oppSide);
-        if (grade < worst) worst = grade; // this changes worst every time
-            // something smaller is found.
-        delete scopy;
+    for (vector<Move*>::iterator i = moves.begin(); i != moves.end(); i++) {
+        Board * copy = brd->copy();
+        copy->doMove(*i, theSide);
+        score = worstResult(nextSide(theSide), depth + 1, copy);
+        delete copy;
         delete (*i);
+
     }
 
     moves.clear();
 
-    delete copy;
-
-    return worst;
+    return score;
 }
 
 /*
@@ -226,3 +220,10 @@ bool Player::isCorner(Move* move){
     || (move->getX() == 7 && move->getY() == 0) || (move->getX() == 7 && move->getY() == 7); 
 }
 
+Side Player::nextSide(Side side) {
+    return (side == BLACK) ? WHITE : BLACK;
+}
+
+int Player::grade(Board* b) {
+    return b->count(side) - b->count(oppSide);
+}
